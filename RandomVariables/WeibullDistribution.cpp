@@ -37,8 +37,7 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 // Written: fmckenna
 
 #include "WeibullDistribution.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QDebug>
@@ -50,41 +49,45 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 WeibullDistribution::WeibullDistribution(QString inpType, QWidget *parent) :RandomVariableDistribution(parent)
 {
-
     //
-    // create the main horizontal layout and add the input entries
+    // create the main layout and add the input entries
     //
+    QGridLayout *mainLayout = new QGridLayout(this);
 
-    QHBoxLayout *mainLayout = new QHBoxLayout();
+    // set some defaults, and set layout for widget to be the horizontal layout
+    mainLayout->setHorizontalSpacing(10);
+    mainLayout->setVerticalSpacing(0);
+    mainLayout->setMargin(0);
+
     QPushButton *showPlotButton = new QPushButton("Show PDF");
 
     this->inpty=inpType;
 
     if (inpty==QString("Parameters"))
     {
-        an = this->createTextEntry(tr("an (scale)"), mainLayout);
+        an = this->createTextEntry(tr("an (scale)"), mainLayout, 0);
         an->setValidator(new QDoubleValidator);
-        k  = this->createTextEntry(tr("k (shape)"), mainLayout);
+        k  = this->createTextEntry(tr("k (shape)"), mainLayout, 1);
         k->setValidator(new QDoubleValidator);
-        mainLayout->addWidget(showPlotButton);
+        mainLayout->addWidget(showPlotButton, 1,2);
 
     } else if (inpty==QString("Moments")) {
 
-        mean = this->createTextEntry(tr("Mean"), mainLayout);
+        mean = this->createTextEntry(tr("Mean"), mainLayout, 0);
         mean->setValidator(new QDoubleValidator);        
-        standardDev = this->createTextEntry(tr("Standard Dev"), mainLayout);
+        standardDev = this->createTextEntry(tr("Standard Dev"), mainLayout, 1);
         standardDev->setValidator(new QDoubleValidator);
-        mainLayout->addWidget(showPlotButton);
+        mainLayout->addWidget(showPlotButton, 1,2);
 
     } else if (inpty==QString("Dataset")) {
 
 
-        dataDir = this->createTextEntry(tr("Data File"), mainLayout);
+        dataDir = this->createTextEntry(tr("Data File"), mainLayout, 0);
         dataDir->setMinimumWidth(210);
         dataDir->setMaximumWidth(210);
 
         QPushButton *chooseFileButton = new QPushButton("Choose");
-        mainLayout->addWidget(chooseFileButton);
+        mainLayout->addWidget(chooseFileButton, 1,1);
 
         // Action
         connect(chooseFileButton, &QPushButton::clicked, this, [=](){
@@ -92,13 +95,7 @@ WeibullDistribution::WeibullDistribution(QString inpType, QWidget *parent) :Rand
         });
     }
 
-
-    mainLayout->addStretch();
-
-    // set some defaults, and set layout for widget to be the horizontal layout
-    mainLayout->setSpacing(10);
-    mainLayout->setMargin(0);
-    this->setLayout(mainLayout);
+    mainLayout->setColumnStretch(3,1);
 
     thePlot = new SimCenterGraphPlot(QString("x"),QString("Probability Densisty Function"),500, 500);
 
@@ -127,15 +124,15 @@ WeibullDistribution::outputToJSON(QJsonObject &rvObject){
             emit sendErrorMessage("ERROR: WeibullDistribution - data has not been set");
             return false;
         }
-        rvObject["an"]=an->text().toDouble();
-        rvObject["k"]=k->text().toDouble();
+        rvObject["scaleparam"]=an->text().toDouble();
+        rvObject["shapeparam"]=k->text().toDouble();
     } else if (inpty==QString("Moments")) {
         if ((mean->text().isEmpty())||(standardDev->text().isEmpty())) {
             emit sendErrorMessage("ERROR: WeibullDistribution - data has not been set");
             return false;
         }
         rvObject["mean"]=mean->text().toDouble();
-        rvObject["stdDev"]=standardDev->text().toDouble();
+        rvObject["standardDev"]=standardDev->text().toDouble();
     } else if (inpty==QString("Dataset")) {
         if (dataDir->text().isEmpty()) {
             emit sendErrorMessage("ERROR: WeibullDistribution - data has not been set");
@@ -153,17 +150,22 @@ WeibullDistribution::inputFromJSON(QJsonObject &rvObject){
     // for all entries, make sure i exists and if it does get it, otherwise return error
     //
 
-    inpty=rvObject["inputType"].toString();
+    if (rvObject.contains("inputType")) {
+        inpty=rvObject["inputType"].toString();
+    } else {
+        inpty = "Parameters";
+    }
+
     if (inpty==QString("Parameters")) {
-        if (rvObject.contains("an")) {
-            double theMuValue = rvObject["an"].toDouble();
+        if (rvObject.contains("shapeparam")) {
+            double theMuValue = rvObject["shapeparam"].toDouble();
             an->setText(QString::number(theMuValue));
         } else {
             emit sendErrorMessage("ERROR: WeibullDistribution - no \"a\" entry");
             return false;
         }
-        if (rvObject.contains("k")) {
-            double theSigValue = rvObject["k"].toDouble();
+        if (rvObject.contains("scaleparam")) {
+            double theSigValue = rvObject["scaleparam"].toDouble();
             k->setText(QString::number(theSigValue));
         } else {
             emit sendErrorMessage("ERROR: WeibullDistribution - no \"a\" entry");

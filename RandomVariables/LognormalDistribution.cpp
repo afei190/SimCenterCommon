@@ -37,8 +37,7 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 // Written: fmckenna
 
 #include "LognormalDistribution.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QDebug>
@@ -50,41 +49,45 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 LognormalDistribution::LognormalDistribution(QString inpType, QWidget *parent) :RandomVariableDistribution(parent)
 {
-
     //
-    // create the main horizontal layout and add the input entries
+    // create the main layout and add the input entries
     //
+    QGridLayout *mainLayout = new QGridLayout(this);
 
-    QHBoxLayout *mainLayout = new QHBoxLayout();
+    // set some defaults, and set layout for widget to be the horizontal layout
+    mainLayout->setHorizontalSpacing(10);
+    mainLayout->setVerticalSpacing(0);
+    mainLayout->setMargin(0);
+
     QPushButton *showPlotButton = new QPushButton("Show PDF");
 
     this->inpty=inpType;
 
     if (inpty==QString("Parameters"))
     {
-        lambda = this->createTextEntry(tr("lambda"), mainLayout);
+        lambda = this->createTextEntry(tr("lambda"), mainLayout, 0);
         lambda->setValidator(new QDoubleValidator);
-        zeta  = this->createTextEntry(tr("zeta"), mainLayout);
+        zeta  = this->createTextEntry(tr("zeta"), mainLayout, 1);
         zeta->setValidator(new QDoubleValidator);
-        mainLayout->addWidget(showPlotButton);
+        mainLayout->addWidget(showPlotButton, 1,2);
 
     } else if (inpty==QString("Moments")) {
 
-        mean = this->createTextEntry(tr("Mean"), mainLayout);
+        mean = this->createTextEntry(tr("Mean"), mainLayout, 0);
         mean->setValidator(new QDoubleValidator);        
-        standardDev = this->createTextEntry(tr("Standard Dev"), mainLayout);
+        standardDev = this->createTextEntry(tr("Standard Dev"), mainLayout, 1);
         standardDev->setValidator(new QDoubleValidator);
-        mainLayout->addWidget(showPlotButton);
+        mainLayout->addWidget(showPlotButton, 1,2);
 
     } else if (inpty==QString("Dataset")) {
 
 
-        dataDir = this->createTextEntry(tr("Data File"), mainLayout);
+        dataDir = this->createTextEntry(tr("Data File"), mainLayout, 0);
         dataDir->setMinimumWidth(200);
         dataDir->setMinimumWidth(200);
 
         QPushButton *chooseFileButton = new QPushButton("Choose");
-        mainLayout->addWidget(chooseFileButton);
+        mainLayout->addWidget(chooseFileButton, 1,1);
 
         // Action
         connect(chooseFileButton, &QPushButton::clicked, this, [=](){
@@ -92,13 +95,7 @@ LognormalDistribution::LognormalDistribution(QString inpType, QWidget *parent) :
         });
     }
 
-
-    mainLayout->addStretch();
-
-    // set some defaults, and set layout for widget to be the horizontal layout
-    mainLayout->setSpacing(10);
-    mainLayout->setMargin(0);
-    this->setLayout(mainLayout);
+    mainLayout->setColumnStretch(3,1);
 
     thePlot = new SimCenterGraphPlot(QString("x"),QString("Probability Densisty Function"),500, 500);
 
@@ -136,7 +133,7 @@ LognormalDistribution::outputToJSON(QJsonObject &rvObject){
             return false;
         }
         rvObject["mean"]=mean->text().toDouble();
-        rvObject["standardDev"]=standardDev->text().toDouble();
+        rvObject["stdDev"]=standardDev->text().toDouble();
     } else if (inpty==QString("Dataset")) {
         if (dataDir->text().isEmpty()) {
             emit sendErrorMessage("ERROR: LognormalDistribution - data has not been set");
@@ -154,7 +151,12 @@ LognormalDistribution::inputFromJSON(QJsonObject &rvObject){
     // for all entries, make sure i exists and if it does get it, otherwise return error
     //
 
-    inpty=rvObject["inputType"].toString();
+    if (rvObject.contains("inputType")) {
+        inpty=rvObject["inputType"].toString();
+    } else {
+        inpty = "Parameters";
+    }
+
     if (inpty==QString("Parameters")) {
         if (rvObject.contains("lambda")) {
             double thelambdaValue = rvObject["lambda"].toDouble();
@@ -179,8 +181,8 @@ LognormalDistribution::inputFromJSON(QJsonObject &rvObject){
             emit sendErrorMessage("ERROR: LognormalDistribution - no \"mean\" entry");
             return false;
         }
-        if (rvObject.contains("standardDev")) {
-            double theStdValue = rvObject["standardDev"].toDouble();
+        if (rvObject.contains("stdDev")) {
+            double theStdValue = rvObject["stdDev"].toDouble();
             standardDev->setText(QString::number(theStdValue));
         } else {
             emit sendErrorMessage("ERROR: LognormalDistribution - no \"mean\" entry");

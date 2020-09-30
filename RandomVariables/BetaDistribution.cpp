@@ -37,8 +37,7 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 // Written: fmckenna
 
 #include "BetaDistribution.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QDebug>
@@ -50,67 +49,69 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 BetaDistribution::BetaDistribution(QString inpType, QWidget *parent) :RandomVariableDistribution(parent)
 {
-
     //
-    // create the main horizontal layout and add the input entries
+    // create the main layout and add the input entries
     //
+    QGridLayout *mainLayout = new QGridLayout(this);
 
-    QHBoxLayout *mainLayout = new QHBoxLayout();
+    // set some defaults, and set layout for widget to be the horizontal layout
+    mainLayout->setHorizontalSpacing(10);
+    mainLayout->setVerticalSpacing(0);
+    mainLayout->setMargin(0);
+
     QPushButton *showPlotButton = new QPushButton("Show PDF");
 
     this->inpty=inpType;
 
     if (inpty==QString("Parameters"))
     {
-        alpha = this->createTextEntry(tr("alpha"), mainLayout);
+        alpha = this->createTextEntry(tr("alpha"), mainLayout, 0);
         alpha->setValidator(new QDoubleValidator);
-        beta  = this->createTextEntry(tr("beta"), mainLayout);
+        beta  = this->createTextEntry(tr("beta"), mainLayout, 1);
         beta->setValidator(new QDoubleValidator);
-        a = this->createTextEntry(tr("Min."), mainLayout);
+        a = this->createTextEntry(tr("Min."), mainLayout, 2);
         a->setValidator(new QDoubleValidator);
-        b  = this->createTextEntry(tr("Max."), mainLayout);
+        b  = this->createTextEntry(tr("Max."), mainLayout, 3);
         b->setValidator(new QDoubleValidator);
-        mainLayout->addWidget(showPlotButton);
+        mainLayout->addWidget(showPlotButton, 1,4);
+
+        mainLayout->setColumnStretch(5,1);
 
     } else if (inpty==QString("Moments")) {
 
-        mean = this->createTextEntry(tr("Mean"), mainLayout);
+        mean = this->createTextEntry(tr("Mean"), mainLayout, 0);
         mean->setValidator(new QDoubleValidator);        
-        standardDev = this->createTextEntry(tr("Standard Dev"), mainLayout);
+        standardDev = this->createTextEntry(tr("Standard Dev"), mainLayout, 1);
         standardDev->setValidator(new QDoubleValidator);
-        a = this->createTextEntry(tr("Min."), mainLayout);
+        a = this->createTextEntry(tr("Min."), mainLayout, 2);
         a->setValidator(new QDoubleValidator);
-        b  = this->createTextEntry(tr("Max."), mainLayout);
+        b  = this->createTextEntry(tr("Max."), mainLayout, 3);
         b->setValidator(new QDoubleValidator);
-        mainLayout->addWidget(showPlotButton);
+        mainLayout->addWidget(showPlotButton, 1,4);
+
+        mainLayout->setColumnStretch(5,1);
 
     } else if (inpty==QString("Dataset")) {
 
-        a = this->createTextEntry(tr("Min."), mainLayout);
+        a = this->createTextEntry(tr("Min."), mainLayout, 0);
         a->setValidator(new QDoubleValidator);
-        b  = this->createTextEntry(tr("Max."), mainLayout);
+        b  = this->createTextEntry(tr("Max."), mainLayout, 1);
         b->setValidator(new QDoubleValidator);
 
-        dataDir = this->createTextEntry(tr("Data File"), mainLayout);
+        dataDir = this->createTextEntry(tr("Data File"), mainLayout, 2);
         //dataDir->setMinimumWidth(500);
         //dataDir->setMaximumWidth(500);
 
         QPushButton *chooseFileButton = new QPushButton("Choose");
-        mainLayout->addWidget(chooseFileButton);
+        mainLayout->addWidget(chooseFileButton, 1, 3);
+
+        mainLayout->setColumnStretch(4,1);
 
         // Action
         connect(chooseFileButton, &QPushButton::clicked, this, [=](){
                 dataDir->setText(QFileDialog::getOpenFileName(this,tr("Open File"),"C://", "All files (*.*)"));
         });
     }
-
-
-    mainLayout->addStretch();
-
-    // set some defaults, and set layout for widget to be the horizontal layout
-    mainLayout->setSpacing(10);
-    mainLayout->setMargin(0);
-    this->setLayout(mainLayout);
 
     thePlot = new SimCenterGraphPlot(QString("x"),QString("Probability Densisty Function"),500, 500);
 
@@ -145,8 +146,8 @@ BetaDistribution::outputToJSON(QJsonObject &rvObject){
         }
         rvObject["alphas"]=alpha->text().toDouble();
         rvObject["betas"]=beta->text().toDouble();
-        rvObject["lowerBound"]=a->text().toDouble();
-        rvObject["upperBound"]=b->text().toDouble();
+        rvObject["lowerbound"]=a->text().toDouble();
+        rvObject["upperbound"]=b->text().toDouble();
     } else if (inpty==QString("Moments")) {
         if ((mean->text().isEmpty())||(standardDev->text().isEmpty())||(a->text().isEmpty())||(b->text().isEmpty())) {
             emit sendErrorMessage("ERROR: BetaDistribution - data has not been set");
@@ -154,15 +155,15 @@ BetaDistribution::outputToJSON(QJsonObject &rvObject){
         }
         rvObject["mean"]=mean->text().toDouble();
         rvObject["standardDev"]=standardDev->text().toDouble();
-        rvObject["lowerBound"]=a->text().toDouble();
-        rvObject["upperBound"]=b->text().toDouble();
+        rvObject["lowerbound"]=a->text().toDouble();
+        rvObject["upperbound"]=b->text().toDouble();
     } else if (inpty==QString("Dataset")) {
         if (dataDir->text().isEmpty()) {
             emit sendErrorMessage("ERROR: BetaDistribution - data has not been set");
             return false;
         }
-        rvObject["lowerBound"]=a->text().toDouble();
-        rvObject["upperBound"]=b->text().toDouble();
+        rvObject["lowerbound"]=a->text().toDouble();
+        rvObject["upperbound"]=b->text().toDouble();
         rvObject["dataDir"]=QString(dataDir->text());
     }
     return true;
@@ -175,7 +176,12 @@ BetaDistribution::inputFromJSON(QJsonObject &rvObject){
     // for all entries, make sure i exists and if it does get it, otherwise return error
     //
 
-    inpty=rvObject["inputType"].toString();
+    if (rvObject.contains("inputType")) {
+        inpty=rvObject["inputType"].toString();
+    } else {
+        inpty = "Parameters";
+    }
+
     if (inpty==QString("Parameters")) {
         if (rvObject.contains("alphas")) {
             double theAlphaValue = rvObject["alphas"].toDouble();
@@ -191,15 +197,15 @@ BetaDistribution::inputFromJSON(QJsonObject &rvObject){
             emit sendErrorMessage("ERROR: BetaDistribution - no \"beta\" entry");
             return false;
         }
-        if (rvObject.contains("upperBound")) {
-            double theAValue = rvObject["upperBound"].toDouble();
+        if (rvObject.contains("lowerbound")) {
+            double theAValue = rvObject["lowerbound"].toDouble();
             a->setText(QString::number(theAValue));
         } else {
             emit sendErrorMessage("ERROR: BetaDistribution - no \"a\" entry");
             return false;
         }
-        if (rvObject.contains("upperBound")) {
-            double theBValue = rvObject["upperBound"].toDouble();
+        if (rvObject.contains("upperbound")) {
+            double theBValue = rvObject["upperbound"].toDouble();
             b->setText(QString::number(theBValue));
         } else {
             emit sendErrorMessage("ERROR: BetaDistribution - no \"b\" entry");
@@ -222,15 +228,15 @@ BetaDistribution::inputFromJSON(QJsonObject &rvObject){
             emit sendErrorMessage("ERROR: BetaDistribution - no \"mean\" entry");
             return false;
         }
-        if (rvObject.contains("upperBound")) {
-            double theAValue = rvObject["upperBound"].toDouble();
+        if (rvObject.contains("lowerbound")) {
+            double theAValue = rvObject["lowerbound"].toDouble();
             a->setText(QString::number(theAValue));
         } else {
             emit sendErrorMessage("ERROR: BetaDistribution - no \"a\" entry");
             return false;
         }
-        if (rvObject.contains("upperBound")) {
-            double theBValue = rvObject["upperBound"].toDouble();
+        if (rvObject.contains("upperbound")) {
+            double theBValue = rvObject["upperbound"].toDouble();
             b->setText(QString::number(theBValue));
         } else {
             emit sendErrorMessage("ERROR: BetaDistribution - no \"b\" entry");
